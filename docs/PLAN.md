@@ -91,6 +91,7 @@ light-repost/
 5. Mapping + попытка delete
 6. Docker + VPS
 7. Переключить получение апдейтов на webhook
+8. Ссылки из TG entities → в текст VK (MVP: блок ссылок внизу поста; bold/italic не переносим)
 
 ## Что нужно подготовить до кода
 

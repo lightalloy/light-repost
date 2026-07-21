@@ -3,4 +3,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
     bot_token: str
     channel_id: int
+    vk_token: str
+    vk_group_id: int
 settings = Settings()
