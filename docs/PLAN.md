@@ -4,12 +4,13 @@
 
 **Делаем сейчас**
 - Автопостинг: пост в TG-канале → пост в одно VK-сообщество
-- Только **текст** и **фото** (одно фото; альбом — позже или «первое фото»)
+- Только **текст** (community token)
 - Всё в `.env` (токены, `CHANNEL_ID`, `VK_GROUP_ID`)
 - Удаление в канале → удаление поста в VK (минимальный sync)
 - Docker + VPS — после того как локально заработает
 
 **Не делаем сейчас**
+- Фото на стену VK: `photos.getWallUploadServer` / альбом недоступны с community token (error 27); user/VK ID — отдельный гемор; doc как файл — бессмысленно. Отложено.
 - Связки канал↔сообщество в БД
 - Режим «переслал боту»
 - Редактирование, видео, media group, подпись со ссылкой
@@ -20,13 +21,13 @@
 |-----|--------|
 | Python | 3.12 |
 | Telegram | **aiogram 3** (сразу async — это «нормальный» стиль для ботов) |
-| VK | **httpx** + прямые вызовы API (`wall.post`, `photos.*`, `wall.delete`) |
+| VK | **httpx** + прямые вызовы API (`wall.post`, позже `wall.delete`; фото — TBD) |
 | Конфиг | `pydantic-settings` + `.env` |
 | Маппинг TG↔VK для удаления | простой **SQLite** (одна таблица) или даже JSON-файл на старте |
 | Деплой | Dockerfile + `docker compose` позже |
 | Получение апдейтов | **polling** для отладки → **webhook** на VPS |
 
-Почему не `vk_api`: он sync и тянет лишнее. Для обучения полезнее один раз руками пройти upload photo → `wall.post`.
+Почему не `vk_api`: он sync и тянет лишнее. Для обучения полезнее прямые вызовы через httpx.
 
 Почему сразу async: сильный Ruby-бэкграунд — async в Python ближе к «сервисному» коду, чем sync-скрипт. Sync можно разобрать **параллельно как учебный контраст**, не как основу проекта.
 
@@ -48,8 +49,7 @@ light-repost/
     handlers/
       channel.py     # channel_post, channel_post_deleted (или service message)
     services/
-      telegram_media.py  # скачать фото
-      vk.py              # post_text, post_photo, delete_post
+      vk.py              # wall_post (текст); позже delete_post / фото
       mapping.py         # сохранить tg_msg_id → vk_post_id
   .env.example
   requirements.txt
@@ -57,7 +57,7 @@ light-repost/
 ```
 
 Поток:
-1. `channel_post` → есть фото? скачать → upload в VK → `wall.post`
+1. `channel_post` → текст → `wall.post`
 2. Сохранить `(channel_id, message_id) → (vk_owner_id, vk_post_id)`
 3. Удаление поста в канале → найти mapping → `wall.delete`
 
@@ -87,17 +87,18 @@ light-repost/
 1. Бот отвечает `/start` в личке (проверка, что токен живой)
 2. Логировать `channel_post` (только текст) в консоль
 3. `wall.post` текста в VK из хендлера
-4. Одно фото: download → VK upload → post
-5. Mapping + попытка delete
-6. Docker + VPS
-7. Переключить получение апдейтов на webhook
-8. Ссылки из TG entities → в текст VK (MVP: блок ссылок внизу поста; bold/italic не переносим)
+4. Docker + VPS
+5. Переключить получение апдейтов на webhook
+6. Ссылки из TG entities → в текст VK (MVP: блок ссылок внизу поста; bold/italic не переносим)
+7. Mapping + попытка delete
+8. Фото (если появится нормальный путь без user-token ада)
+
 
 ## Что нужно подготовить до кода
 
 - BotFather → токен
 - Бот добавлен **админом канала** с правом читать сообщения
-- VK: сообщество, токен с `wall`, `photos` (community token)
+- VK: сообщество, токен с `wall` (community token)
 - ID канала (обычно `-100...`) и ID группы VK (число, в API `owner_id = -group_id`)
 
 ## Следующий шаг
