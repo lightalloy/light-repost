@@ -6,6 +6,10 @@ __pycache__/
 *.pyc
 docs/
 *.md
+tests/
+.github/
+pytest.ini
+requirements-dev.txt
 .dockerignore
 Dockerfile
 docker-compose.yml
