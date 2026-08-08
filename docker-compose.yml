@@ -1,5 +1,6 @@
 services:
   bot:
+    image: ghcr.io/lightalloy/light-repost:latest
     build: .
     env_file: .env
     restart: unless-stopped

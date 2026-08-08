@@ -16,11 +16,15 @@ python -m app.main
 
 ## Docker
 
+Локально (сборка на машине):
+
 ```bash
 cp .env.example .env   # если ещё нет
 docker compose up -d --build
 docker compose logs -f bot
 ```
+
+На VPS образ берётся из GHCR (`ghcr.io/lightalloy/light-repost`): push в `main` → CI тесты → build/push. Дальше на сервере: `docker compose pull && docker compose up -d`.
 
 ## Тесты
 
