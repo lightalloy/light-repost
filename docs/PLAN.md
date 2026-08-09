@@ -137,6 +137,7 @@ push в main → CI: tests → build → push GHCR     ← автоматом
 
 #### 2. Поддомен
 
++ ns-серверы у регистратора записала
 - DNS: `A` запись, например `repost.example.com` → IP VPS.
 - Подождать резолв (`dig` / `ping`).
 - Для Telegram webhook нужен именно hostname + HTTPS (не голый IP).
