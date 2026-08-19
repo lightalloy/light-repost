@@ -24,6 +24,7 @@ jobs:
       - name: Run tests
         run: pytest -q
         env:
+          BOT_MODE: polling
           BOT_TOKEN: test-bot-token
           CHANNEL_ID: "-1001234567890"
           VK_TOKEN: test-vk-token

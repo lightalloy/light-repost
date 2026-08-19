@@ -75,3 +75,24 @@ def hello():
 hello()  # calling hello / hi
 ```
 
+Настройки:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    bot_token: str
+    channel_id: int
+    vk_token: str
+    vk_group_id: int
+    bot_mode: Literal["polling", "webhook"] = "webhook"  # дефолт
+    webhook_path: str = "/webhook"
+    force_ipv4: bool = False
+settings = Settings()
+```
+
+
+
+
+
+
