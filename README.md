@@ -45,15 +45,16 @@ docker compose up -d
 docker compose logs -f bot
 ```
 
-Образ: `ghcr.io/lightalloy/light-repost` (CI на push в `main`: tests → build → push).
+Образ: `ghcr.io/lightalloy/light-repost` (CI на push в `main`: tests → build → push → deploy).
 
 ### Деплой обновления
 
-После того как в GHCR есть новый `latest`:
+Push в `main`: CI гоняет тесты → собирает образ в GHCR → по SSH на VPS `compose pull && up -d`.
 
-- **кнопка:** Actions → Deploy → Run workflow  
-  (секреты репо: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`)
-- **локально:**
+Вручную (без нового коммита): Actions → Deploy → Run workflow  
+(секреты репо: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`)
+
+Или локально:
 
 ```bash
 export DEPLOY_HOST=… DEPLOY_USER=… DEPLOY_PATH=/opt/light-repost

@@ -16,7 +16,7 @@
 | VK | httpx + прямые вызовы API (`wall.post`; позже `wall.delete`) |
 | Конфиг | pydantic-settings + `.env` |
 | Тесты | pytest (+ pytest-asyncio) |
-| Деплой | Docker Compose → образ `ghcr.io/lightalloy/light-repost` |
+| Деплой | Docker Compose → образ `ghcr.io/lightalloy/light-repost`; push в `main` → test → build → deploy |
 
 Не тянуть sync-библиотеки (`requests`, `vk_api`) в основной код без явной просьбы.
 
@@ -75,13 +75,14 @@ docs/               # план, заметки, учебные разборы �
 - polling + webhook
 - ссылки: `text_link` → комментарий VK (`wall.createComment`); entity `url` не дублируем (уже в тексте поста). План: `docs/links.md`
 - mapping TG↔VK + удаление (когда дойдём)
-- Docker / GHCR / деплой по явной команде
+- Docker / GHCR / автодеплой на push в `main` (после test→build); ручной Deploy — запасной путь
 
 **Вне scope, пока не попросили иначе:**
 - фото/видео/media group на стену VK (community token + upload — отдельная боль)
 - БД связок канал↔сообщество, режим «переслал боту»
 - редактирование постов, «красивое» форматирование TG→VK
-- Watchtower, автодеплой на каждый push, k8s
+- Watchtower, k8s
+- деплой с PR (только `main` после test→build)
 
 Маленькие шаги: одна фича за раз, без рефакторинга «заодно».
 

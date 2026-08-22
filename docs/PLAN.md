@@ -112,13 +112,9 @@ docker compose down
 Цепочка «как нормально»:
 
 ```text
-push в main → CI: tests → build → push GHCR     ← автоматом
+push в main → CI: tests → build → push GHCR → deploy (SSH pull/up)
                          ↓
-         Deploy (когда скажешь):
-           • кнопка workflow_dispatch в Actions
-           • или локально: ./scripts/deploy.sh
-                         ↓
-              SSH → compose pull && up -d
+         Deploy вручную (workflow_dispatch), если нужен выкат без нового коммита
                          ↓
     (когда готов поддомен) Caddy + webhook
 ```
@@ -135,7 +131,7 @@ push в main → CI: tests → build → push GHCR     ← автоматом
 - Секреты по-прежнему только в `.env` на сервере, не в образе.
 - `permissions: packages: write` у job `build`; пуш через `GITHUB_TOKEN`.
 
-Отдельный workflow — только для **Deploy** (`workflow_dispatch`), чтобы кнопка деплоя не смешивалась с CI.
+Отдельный workflow **Deploy** (`workflow_dispatch`) — ручной выкат без push; автодеплой — job `deploy` в `ci.yml` после `build`.
 
 #### 2. Поддомен
 
@@ -158,29 +154,28 @@ repost.example.com {
 - TLS Let's Encrypt сам; в файрволе открыты 80/443.
 - Бот в compose слушает только `127.0.0.1:8080:8080` (не торчит в интернет напрямую).
 
-#### 4. Выкат на VPS (автодеплой)
+#### 4. Выкат на VPS
 
-Образ на `main` собирается сам; **на сервер — по явной команде** (не после каждого пуша: так спокойнее откатывать и не ловить сюрпризы).
-
-Два одинаковых по сути способа (оба ок):
+Образ на `main` собирается сам; **на сервер — автоматически** после успешного `build` (job `deploy` в CI).
 
 | | Как |
 |--|-----|
-| **Кнопка в CI** | workflow `Deploy` с `workflow_dispatch` → SSH на VPS → `docker compose pull && up -d` |
-| **Локально** | `./scripts/deploy.sh` (тот же SSH + pull/up) |
+| **Авто** | push в `main` → test → build/push GHCR → SSH → `docker compose pull && up -d` |
+| **Кнопка** | workflow `Deploy` (`workflow_dispatch`) — тот же SSH, без нового коммита |
+| **Локально** | `./scripts/deploy.sh` |
 
 На VPS один раз: каталог с `docker-compose.yml` + `.env`, `docker login ghcr.io` (если private), пользователь для деплоя с правом на docker.
 
-В GitHub Secrets (для кнопки): `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (и при необходимости `DEPLOY_PATH`).
+В GitHub Secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (и при необходимости `DEPLOY_PATH`).
 
 Порядок внедрения:
-1. Workflow: test → build/push GHCR на push в `main`.
-2. VPS: `.env`, compose под `image:`, login GHCR, первый `pull && up` (polling).
-3. Workflow Deploy +/или `scripts/deploy.sh`.
+1. Workflow: test → build/push GHCR → deploy на push в `main`.
+2. VPS: `.env`, compose под `image:`, login GHCR, первый `pull && up`.
+3. Кнопка Deploy / `scripts/deploy.sh` — запасной ручной путь.
 4. Поддомен + Caddy.
 5. Код webhook + проверка.
 
-**Не сейчас:** Watchtower, деплой на каждый push без кнопки, k8s, Caddy в compose бота.
+**Не сейчас:** Watchtower, деплой с PR, k8s, Caddy в compose бота.
 
 ### VPS + webhook (инфра, кратко)
 
@@ -204,6 +199,6 @@ Internet → :443 Caddy (хост, TLS)
 
 1. CI: test → build/push GHCR на `main`.
 2. VPS: первый pull, polling-проверка.
-3. Deploy: кнопка `workflow_dispatch` + скрипт локально.
+3. Автодеплой в CI после build; кнопка Deploy / `scripts/deploy.sh` — запасной путь.
 4. Поддомен + Caddy.
 5. Webhook в коде и на сервере.

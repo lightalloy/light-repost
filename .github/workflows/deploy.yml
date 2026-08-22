@@ -1,5 +1,6 @@
 name: Deploy
 
+# Ручной выкат (без нового push). Автодеплой — job deploy в ci.yml после test→build.
 on:
   workflow_dispatch:
 
@@ -8,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.2
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
