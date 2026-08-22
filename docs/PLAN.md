@@ -49,7 +49,8 @@ light-repost/
     handlers/
       channel.py     # channel_post, channel_post_deleted (или service message)
     services/
-      vk.py              # wall_post (текст); позже delete_post / фото
+      vk.py              # wall_post; create_comment (ссылки); позже delete_post / фото
+      telegram_format.py # extract_links из entities
       mapping.py         # сохранить tg_msg_id → vk_post_id
   .env.example
   requirements.txt
@@ -58,8 +59,9 @@ light-repost/
 
 Поток:
 1. `channel_post` → текст → `wall.post`
-2. Сохранить `(channel_id, message_id) → (vk_owner_id, vk_post_id)`
-3. Удаление поста в канале → найти mapping → `wall.delete`
+2. Если в entities есть `text_link` → `wall.createComment` с URL (голый `url` остаётся в тексте поста; см. `docs/links.md`)
+3. Сохранить `(channel_id, message_id) → (vk_owner_id, vk_post_id)`
+4. Удаление поста в канале → найти mapping → `wall.delete`
 
 Нюанс: Telegram отдаёт удаление через `message` с `deleted` / `Message.is_automatic_forward` — для каналов это `channel_post` с типом service или отдельный апдейт. В Bot API для каналов удаление часто приходит ненадёжно боту-админу. Для mvp честнее: **сначала постинг**, sync удаления — вторым маленьким шагом, когда убедимся, какие апдейты реально приходят.
 
@@ -89,7 +91,7 @@ light-repost/
 3. `wall.post` текста в VK из хендлера ✅
 4. Docker (+ деплой на VPS)
 5. Переключить получение апдейтов на webhook
-6. Ссылки из TG entities → в текст VK (MVP: блок ссылок внизу поста; bold/italic не переносим)
+6. Ссылки: `text_link` → комментарий VK (`wall.createComment`); голый `url` только в тексте поста. Детали: `docs/links.md`
 7. Mapping + попытка delete
 8. Фото (если появится нормальный путь без user-token ада)
 

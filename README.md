@@ -8,8 +8,16 @@
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt   # тесты + hot reload
 cp .env.example .env   # заполнить токены и ID
 python -m app.main
+```
+
+С перезапуском при правках в `app/` (только локально, не в Docker):
+
+```bash
+./scripts/dev.sh
+# или: watchfiles --filter python "python -m app.main" app
 ```
 
 Нужны: бот — админ канала; VK community token с правом `wall`.

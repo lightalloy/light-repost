@@ -1,74 +1,76 @@
-# Ссылки и форматирование TG → VK
+# Ссылки TG → VK
 
-Кратко: **жирный/курсив как в TG в VK через `wall.post` нормально не переносятся**. Ссылки — да, и для MVP этого достаточно.
+Кратко: **жирный/курсив как в TG в VK через `wall.post` нормально не переносятся**. Ссылки — да.
 
-В плане реализации — пункт после webhook (`docs/PLAN.md`, шаг 8).
+**Решение для MVP:**
+- текст поста на стену **как есть** (`wall.post`);
+- entity типа **`url`** (голый `https://...` в тексте) — **не дублируем**: уже в теле поста, в VK обычно сами становятся кликабельными;
+- entity типа **`text_link`** (видимая подпись ≠ URL) — URL в **комментарий** к посту (`wall.createComment`), от имени сообщества.
 
-## Что умеет каждая сторона
+Не дописывать блок ссылок в `message` поста.
 
-**Telegram** отдаёт не только текст, но и `entities` / `caption_entities`: где ссылка, bold, italic, `text_link` (текст ≠ URL) и т.д.
+В общем плане — шаг после webhook (`docs/PLAN.md`, п. 6). Код: `app/services/telegram_format.py`, `create_comment` в `vk.py`, хендлер в `main.py`.
 
-**VK `wall.post`** принимает обычную строку `message`.
+## Почему так
 
-- URL в тексте обычно **сам становится кликабельным**
-- «красивых» hyperlink как в TG (`слово` → url) у стены почти нет
-- bold/italic через API стены по сути нет
+| Entity | В тексте поста | В комментарии |
+|--------|----------------|---------------|
+| `url` | да (сам URL) | нет — дублировать незачем |
+| `text_link` | только подпись («тут») | да — иначе VK потеряет URL |
 
-Поэтому «Сетка» и подобные кросспостеры чаще всего: **текст как есть + URL явно в тексте** (в конце или рядом), иногда сниппет по ссылке. Не настоящий перенос форматирования TG → VK.
+Комментарий вместо «вклеить URL в тело поста» — стена = как в канале; гиперссылки TG не ломаем костылём в `message`.
 
-## MVP для ссылок (отдельно от текста)
+Альтернатива «блок ссылок внизу `wall.post`» — отвергнута для MVP.
 
-Идея: вытащить URL из entities и дописать блоком внизу.
+## VK API
 
-```python
-def format_for_vk(message: Message) -> str:
-    text = message.text or message.caption or ""
-    entities = message.entities or message.caption_entities or []
+| Метод | Роль |
+|-------|------|
+| `wall.post` | текст поста без дописки |
+| `wall.createComment` | URL из `text_link`; `from_group=1`, `owner_id=-vk_group_id`, обязателен `post_id` |
 
-    links: list[str] = []
-    for ent in entities:
-        if ent.type == "url":
-            # URL уже лежит в тексте
-            links.append(text[ent.offset : ent.offset + ent.length])
-        elif ent.type == "text_link" and ent.url:
-            # подпись в TG, url отдельно
-            label = text[ent.offset : ent.offset + ent.length]
-            links.append(f"{label}: {ent.url}")
+Community token с `wall` обычно хватает. На стене комментарии должны быть **включены**.
 
-    # уникальные, порядок сохранить
-    seen: set[str] = set()
-    unique_links: list[str] = []
-    for link in links:
-        if link not in seen:
-            seen.add(link)
-            unique_links.append(link)
-
-    if not unique_links:
-        return text
-
-    return text.rstrip() + "\n\n" + "\n".join(unique_links)
-```
-
-В хендлере:
+## Как сделано
 
 ```python
-vk_text = format_for_vk(message)
-if not vk_text.strip():
+def extract_links(entities: list) -> list[str]:
+    # только text_link → entity.url
     ...
-await wall_post(vk_text)
 ```
 
-Можно вынести `format_for_vk` в `app/services/telegram_format.py`.
+Хендлер:
 
-### Нюанс UTF-16
+```python
+post_id = await wall_post(text)
+links = extract_links(message.entities or message.caption_entities or [])
+if links:
+    try:
+        await create_comment(post_id, "\n".join(links))
+    except Exception:
+        logger.exception("failed to comment links on vk post_id=%s", post_id)
+```
 
-`offset` / `length` в Telegram — в **UTF-16 code units**. Для текста только из BMP (обычный русский/латиница) совпадает с `text[i:j]`. Если появятся эмодзи/редкие символы — понадобится аккуратный слайс (для MVP часто хватает простого среза).
+Ошибка комментария не откатывает пост.
+
+## Тесты / проверка
+
+- `extract_links`: только `text_link`; голый `url` → `[]`; пустые entities → `[]`
+- хендлер: без `text_link` — `create_comment` не вызывается; с ним — комментарий с URL
+- руками: пост с голым URL (только стена); пост с гиперссылкой-подписью (комментарий от сообщества)
 
 ## Что не делать пока
 
-- HTML/Markdown в VK «как parse_mode» — API стены так не работает
-- Полный паритет со Сеткой — долго, для обучения рано
+- HTML/Markdown / bold/italic в VK
+- встраивание url в строку поста (`Текст (https://...)`)
+- дублирование entity `url` в комментарий
+- правка комментария при edit поста в TG
 
-## Альтернатива позже
+## Зависимости
 
-Встраивать url вместо `text_link` в ту же строку: `Текст (https://...)`, а не блок внизу.
+- Нужен `post_id` от `wall.post`.
+- Mapping/delete для ссылок не обязателен: с постом уйдут и комментарии.
+- Webhook не мешает: тот же хендлер.
+
+### TODO
+- класс-клиент VK

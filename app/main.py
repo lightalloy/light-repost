@@ -11,7 +11,8 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from app.config import settings
-from app.services.vk import wall_post
+from app.services.vk import wall_post, create_comment
+from app.services.telegram_format import extract_links
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,6 +45,13 @@ async def on_channel_post(message: Message) -> None:
     try:
         post_id = await wall_post(text)
         logger.info("reposted to vk post_id=%s", post_id)
+        links = extract_links(message.entities or message.caption_entities or [])
+        if links:
+            try:
+                await create_comment(post_id, "\n".join(links))
+            except Exception:
+                logger.exception("failed to comment links on vk post_id=%s", post_id)
+
     except Exception:
         logger.exception("failed to repost to vk")
 
@@ -99,6 +107,7 @@ async def main() -> None:
     if settings.bot_mode == "webhook":
         await run_webhook(bot)
     else:
+        logger.info("точно я")
         await run_polling(bot)
 
 if __name__ == "__main__":
