@@ -107,7 +107,6 @@ async def main() -> None:
     if settings.bot_mode == "webhook":
         await run_webhook(bot)
     else:
-        logger.info("точно я")
         await run_polling(bot)
 
 if __name__ == "__main__":
